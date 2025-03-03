@@ -1,0 +1,38 @@
+import sqlite3
+import pandas as pd
+
+# Database connection
+db_path = "shipping_database.sqlite"
+conn = sqlite3.connect(db_path)
+cursor = conn.cursor()
+
+# Load spreadsheets
+spreadsheet_0 = pd.read_csv("data/spreadsheet_0.csv")
+spreadsheet_1 = pd.read_csv("data/spreadsheet_1.csv")
+spreadsheet_2 = pd.read_csv("data/spreadsheet_2.csv")
+
+# Insert data from spreadsheet_0 directly
+spreadsheet_0.to_sql("Products", conn, if_exists="append", index=False)
+
+# Process shipments (spreadsheet_1 and spreadsheet_2)
+shipment_info = pd.merge(spreadsheet_1, spreadsheet_2, on="shipping_id")
+
+# Insert shipments into database
+for _, row in shipment_info.iterrows():
+    cursor.execute("""
+        INSERT INTO Shipments (shipment_id, origin, destination)
+        VALUES (?, ?, ?)""",
+        (row["shipping_id"], row["origin"], row["destination"])
+    )
+
+# Insert shipment products
+for _, row in spreadsheet_1.iterrows():
+    cursor.execute("""
+        INSERT INTO Shipment_Products (shipment_id, product_name, quantity)
+        VALUES (?, ?, ?)""",
+        (row["shipping_id"], row["product"], row["quantity"])
+    )
+
+# Commit and close
+conn.commit()
+conn.close()
